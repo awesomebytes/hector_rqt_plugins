@@ -268,20 +268,6 @@ void ImageCropper::onLeftClickEvent(QPoint pos)
 }
 
 
-
-void ImageCropper::enforceSelectionConstraints(QPoint & p)
-{
-    int min_x = 1;
-    int max_x = ui_.image_frame->width() - 2 * ui_.image_frame->frameWidth();
-
-    int min_y = 1;
-    int max_y = ui_.image_frame->height() - 2 * ui_.image_frame->frameWidth();
-
-    p.setX(std::min(std::max(p.x(),min_x),max_x));
-    p.setY(std::min(std::max(p.y(),min_y),max_y));
-}
-
-
 void ImageCropper::callbackImage(const sensor_msgs::Image::ConstPtr& img, const sensor_msgs::CameraInfoConstPtr& ci)
 {
     if(!selected_)

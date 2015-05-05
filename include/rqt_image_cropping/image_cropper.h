@@ -96,8 +96,6 @@ protected:
 
   virtual void callbackImage(const sensor_msgs::Image::ConstPtr& msg, const sensor_msgs::CameraInfoConstPtr &ci);
 
-  virtual void enforceSelectionConstraints(QPoint & p);
-
   Ui::ImageCropperWidget ui_;
 
   QWidget* widget_;
