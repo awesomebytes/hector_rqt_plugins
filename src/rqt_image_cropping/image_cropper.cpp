@@ -123,7 +123,6 @@ bool ImageCropper::eventFilter(QObject* watched, QEvent* event)
 void ImageCropper::shutdownPlugin()
 {
   subscriber_.shutdown();
-  publisher_.shutdown();
 }
 
 void ImageCropper::saveSettings(qt_gui_cpp::Settings& plugin_settings, qt_gui_cpp::Settings& instance_settings) const
@@ -131,18 +130,10 @@ void ImageCropper::saveSettings(qt_gui_cpp::Settings& plugin_settings, qt_gui_cp
   QString topic = ui_.topics_combo_box->currentText();
   //qDebug("ImageCropper::saveSettings() topic '%s'", topic.toStdString().c_str());
   instance_settings.setValue("topic", topic);
-  instance_settings.setValue("dynamic_range", ui_.dynamic_range_check_box->isChecked());
-  instance_settings.setValue("max_range", ui_.max_range_double_spin_box->value());
 }
 
 void ImageCropper::restoreSettings(const qt_gui_cpp::Settings& plugin_settings, const qt_gui_cpp::Settings& instance_settings)
 {
-  bool dynamic_range_checked = instance_settings.value("dynamic_range", false).toBool();
-  ui_.dynamic_range_check_box->setChecked(dynamic_range_checked);
-
-  double max_range = instance_settings.value("max_range", ui_.max_range_double_spin_box->value()).toDouble();
-  ui_.max_range_double_spin_box->setValue(max_range);
-
   QString topic = instance_settings.value("topic", "").toString();
   //qDebug("ImageCropper::restoreSettings() topic '%s'", topic.toStdString().c_str());
   selectTopic(topic);
@@ -316,24 +307,6 @@ void ImageCropper::callbackImage(const sensor_msgs::Image::ConstPtr& img, const 
             } else if (img->encoding == "8UC1") {
                 // convert gray to rgb
                 cv::cvtColor(cv_ptr->image, conversion_mat_, CV_GRAY2RGB);
-            } else if (img->encoding == "16UC1" || img->encoding == "32FC1") {
-                // scale / quantify
-                image_min_value_ = 0;
-                image_max_value_ = ui_.max_range_double_spin_box->value();
-                if (img->encoding == "16UC1") image_max_value_ *= 1000;
-                if (ui_.dynamic_range_check_box->isChecked())
-                {
-                    // dynamically adjust range based on min/max in image
-                    cv::minMaxLoc(cv_ptr->image, &image_min_value_, &image_max_value_);
-                    if (image_min_value_ == image_max_value_) {
-                        // completely homogeneous images are displayed in gray
-                        image_min_value_ = 0;
-                        image_max_value_ = 2;
-                    }
-                }
-                cv::Mat img_scaled_8u;
-                cv::Mat(cv_ptr->image-image_min_value_).convertTo(img_scaled_8u, CV_8UC1, 255. / (image_max_value_ - image_min_value_));
-                cv::cvtColor(img_scaled_8u, conversion_mat_, CV_GRAY2RGB);
             } else {
                 qWarning("ImageCropper.callback_image() could not convert image from '%s' to 'rgb8' (%s)", img->encoding.c_str(), e.what());
                 qimage_ = QImage();
