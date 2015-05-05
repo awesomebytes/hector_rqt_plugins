@@ -294,7 +294,12 @@ void ImageCropper::onOutTopicChanged()
 void ImageCropper::onZoomEvent(int numDegrees)
 {
     //i hate c++
-    ui_.out_topic_line_edit->setText(QString::number(numDegrees));
+    std::cout << "Wheel delta degrees: " << numDegrees << std::endl;
+}
+
+void ImageCropper::onLeftClickEvent(QPoint pos)
+{
+    std::cout << "Left click at:\nrx,ry: " << pos.rx() << ", " << pos.ry() << ", \nx,y: " << pos.x() << ", " << pos.y() << std::endl;
 }
 
 
@@ -448,11 +453,6 @@ void ImageCropper::callbackImage(const sensor_msgs::Image::ConstPtr& img, const 
         widget_->setMinimumSize(QSize(80, 60));
         widget_->setMaximumSize(QSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX));
     }
-}
-
-void ImageCropper::publishCrop()
-{
-
 }
 
 }

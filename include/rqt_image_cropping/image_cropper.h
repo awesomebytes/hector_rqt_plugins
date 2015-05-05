@@ -92,6 +92,8 @@ protected slots:
 
   virtual void onZoomEvent(int numDegrees);
 
+  virtual void onLeftClickEvent(QPoint pos);
+
   virtual void onDynamicRange(bool checked);
 
   virtual void onSelectionInProgress(QPoint p1, QPoint p2);
@@ -103,8 +105,6 @@ protected slots:
 protected:
 
   virtual void callbackImage(const sensor_msgs::Image::ConstPtr& msg, const sensor_msgs::CameraInfoConstPtr &ci);
-
-  virtual void publishCrop();
 
   virtual void enforceSelectionConstraints(QPoint & p);
 
