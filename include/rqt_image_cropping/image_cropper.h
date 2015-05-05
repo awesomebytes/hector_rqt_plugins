@@ -73,7 +73,6 @@ public:
 
   virtual void restoreSettings(const qt_gui_cpp::Settings& plugin_settings, const qt_gui_cpp::Settings& instance_settings);
 
-//  virtual void onZoomEvent(int numDegrees);
 
 protected slots:
 
@@ -90,8 +89,6 @@ protected slots:
   virtual void onInTopicChanged(int index);
 
   virtual void onOutTopicChanged();
-
-//  virtual void onZoom1(bool checked);
 
   virtual void onZoomEvent(int numDegrees);
 
