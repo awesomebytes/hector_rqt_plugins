@@ -130,8 +130,7 @@ void RatioLayoutedFrame::mousePressEvent(QMouseEvent *me)
 {
     if(me->button() == Qt::LeftButton)
     {
-        mouse_pressed_ = true;
-        select_start_ = me->pos();
+        emit leftClickSignal(me->pos());
     }
 }
 

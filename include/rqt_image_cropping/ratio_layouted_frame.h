@@ -94,6 +94,7 @@ signals:
   void selectionInProgress(QPoint p1, QPoint p2);
   void selectionFinished(QPoint p1, QPoint p2);
   void rightMouseButtonClicked();
+  void leftClickSignal(QPoint pos);
   void zoomSignal(int numDegrees);
 
 };
