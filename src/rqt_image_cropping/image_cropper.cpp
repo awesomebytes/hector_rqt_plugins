@@ -50,7 +50,6 @@ namespace rqt_image_cropping {
 ImageCropper::ImageCropper()
   : rqt_gui_cpp::Plugin()
   , widget_(0)
-  , selected_(false)
 {
   setObjectName("ImageCropper");
 }
@@ -102,14 +101,6 @@ bool ImageCropper::eventFilter(QObject* watched, QEvent* event)
       gradient.setColorAt(1, Qt::black);
       painter.setBrush(gradient);
       painter.drawRect(0, 0, ui_.image_frame->frameRect().width() + 1, ui_.image_frame->frameRect().height() + 1);
-    }
-
-    if(selected_)
-    {
-        selection_ = QRectF(selection_top_left_rect_, selection_size_rect_);
-
-        painter.setPen(Qt::red);
-        painter.drawRect(selection_);
     }
 
     ui_.image_frame->update();
@@ -251,7 +242,6 @@ void ImageCropper::onInTopicChanged(int index)
     }
   }
 
-  selected_ = false;
 }
 
 
@@ -260,19 +250,59 @@ void ImageCropper::onZoomEvent(int numDegrees)
 {
     //i hate c++
     std::cout << "Wheel delta degrees: " << numDegrees << std::endl;
+    int finalzoom = 0;
+    int zoom_step = 500;
+    finalzoom = (numDegrees / 120) * zoom_step; // qt always gives multiples of 120
+    // get the current zoom level, and add the finalzoom quantity
+    std::cout << "finalzoom: " << finalzoom << std::endl;
+
+    //check we dont go out of bounds, zoom is 1.0 - 9999.0
 }
 
 void ImageCropper::onLeftClickEvent(QPoint pos)
 {
     std::cout << "Left click at:\nrx,ry: " << pos.rx() << ", " << pos.ry() << ", \nx,y: " << pos.x() << ", " << pos.y() << std::endl;
+    // taken looking at the implementation of the axis camera ptz node
+    // get the current pan from the dynamic reconfigure and add/substract a step based on how far the user click from the center
+    int panstep = 10;
+    int tiltstep = 5;
+    std::cout << "ui_.image_frame->frameRect().width():" << ui_.image_frame->frameRect().width() << std::endl;
+    std::cout << "ui_.image_frame->frameRect().height():" << ui_.image_frame->frameRect().height() << std::endl;
+    double relpan = (double) pos.x() / ui_.image_frame->frameRect().width();
+    double reltilt = (double) pos.y() / ui_.image_frame->frameRect().height();
+    std::cout << "relpan: " << relpan << ", reltilt: " << reltilt << std::endl;
+    int final_pan, final_tilt;
+    final_pan = final_tilt = 0;
+    if (relpan >= 0.5 && relpan <= 0.75)
+        final_pan = panstep;
+    else if (relpan <= 0.5 && relpan >= 0.25)
+        final_pan = -panstep;
+    else if (relpan <= 0.25 && relpan >= 0.0)
+        final_pan = 2*panstep;
+    else if (relpan >= 0.75 && relpan <= 1.0)
+        final_pan = -2*panstep;
+    else
+        std::cout << "relpan outside of the range 0.0 - 1.0, this shouldnt happen!" << std::endl;
+
+    if (reltilt >= 0.5 && reltilt <= 0.75)
+        final_tilt = tiltstep;
+    else if (reltilt <= 0.5 && reltilt >= 0.25)
+        final_tilt = -tiltstep;
+    else if (reltilt <= 0.25 && reltilt >= 0.0)
+        final_tilt = 2*tiltstep;
+    else if (reltilt >= 0.75 && reltilt <= 1.0)
+        final_tilt = -2*tiltstep;
+    else
+        std::cout << "reltilt outside of the range 0.0 - 1.0, this shouldnt happen!" << std::endl;
+
+    std::cout << "pan: " << final_pan << " tilt: " << final_tilt << std::endl;
+
+    // check we dont go out of bounds, pan is -180 <-> 180, tilt is -90 <-> 0
 }
 
 
 void ImageCropper::callbackImage(const sensor_msgs::Image::ConstPtr& img, const sensor_msgs::CameraInfoConstPtr& ci)
 {
-    if(!selected_)
-    {
-
         sens_msg_image_ = img;
         camera_info_ = ci;
 
@@ -313,7 +343,6 @@ void ImageCropper::callbackImage(const sensor_msgs::Image::ConstPtr& img, const 
         ui_.image_frame->setMaximumSize(QSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX));
         widget_->setMinimumSize(QSize(80, 60));
         widget_->setMaximumSize(QSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX));
-    }
 }
 
 }

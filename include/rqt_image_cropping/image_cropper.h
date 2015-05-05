@@ -101,7 +101,6 @@ protected:
   QWidget* widget_;
 
   image_transport::CameraSubscriber subscriber_;
-  image_transport::CameraPublisher publisher_;
 
   sensor_msgs::Image::ConstPtr sens_msg_image_;
   sensor_msgs::CameraInfoConstPtr camera_info_;
@@ -122,7 +121,6 @@ protected:
   QSizeF selection_size_;
   QSizeF selection_size_rect_;
 
-  bool selected_;
 
 };
 
