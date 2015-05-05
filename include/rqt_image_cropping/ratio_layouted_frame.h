@@ -41,7 +41,8 @@
 #include <QSize>
 #include <QMouseEvent>
 
-namespace rqt_image_enhancer {
+//namespace rqt_image_enhancer {
+namespace rqt_image_cropping {
 
 /**
  * RatioLayoutedFrame is a layout containing a single frame with a fixed aspect ratio.

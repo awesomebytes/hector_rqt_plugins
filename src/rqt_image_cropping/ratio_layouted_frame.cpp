@@ -30,12 +30,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <rqt_image_enhancer/ratio_layouted_frame.h>
+//#include <rqt_image_enhancer/ratio_layouted_frame.h>
+#include <rqt_image_cropping/ratio_layouted_frame.h>
 
 #include <assert.h>
 #include <iostream>
 
-namespace rqt_image_enhancer {
+//namespace rqt_image_enhancer {
+namespace rqt_image_cropping {
 
 RatioLayoutedFrame::RatioLayoutedFrame(QWidget* parent, Qt::WFlags flags)
   : QFrame() // c++ bullshit initialisation list
