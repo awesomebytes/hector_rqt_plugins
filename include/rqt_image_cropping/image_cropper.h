@@ -94,14 +94,6 @@ protected slots:
 
   virtual void onLeftClickEvent(QPoint pos);
 
-  virtual void onDynamicRange(bool checked);
-
-  virtual void onSelectionInProgress(QPoint p1, QPoint p2);
-
-  virtual void onSelectionFinished(QPoint p1, QPoint p2);
-
-  virtual void onRemoveSelection();
-
 protected:
 
   virtual void callbackImage(const sensor_msgs::Image::ConstPtr& msg, const sensor_msgs::CameraInfoConstPtr &ci);

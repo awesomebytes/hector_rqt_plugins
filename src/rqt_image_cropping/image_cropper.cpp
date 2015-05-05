@@ -80,11 +80,8 @@ void ImageCropper::initPlugin(qt_gui_cpp::PluginContext& context)
   ui_.refresh_topics_push_button->setIcon(QIcon::fromTheme("view-refresh"));
   connect(ui_.refresh_topics_push_button, SIGNAL(pressed()), this, SLOT(updateTopicList()));
   
-  connect(ui_.dynamic_range_check_box, SIGNAL(toggled(bool)), this, SLOT(onDynamicRange(bool)));
 
-  connect(ui_.image_frame, SIGNAL(rightMouseButtonClicked()), this, SLOT(onRemoveSelection()));
-  connect(ui_.image_frame, SIGNAL(selectionInProgress(QPoint,QPoint)), this, SLOT(onSelectionInProgress(QPoint,QPoint)));
-  connect(ui_.image_frame, SIGNAL(selectionFinished(QPoint,QPoint)), this, SLOT(onSelectionFinished(QPoint,QPoint)));
+  connect(ui_.image_frame, SIGNAL(leftClickSignal(QPoint)), this, SLOT(onLeftClickEvent(QPoint)));
   connect(ui_.image_frame, SIGNAL(zoomSignal(int)), this, SLOT(onZoomEvent(int))); // so much c++ hate
 }
 
@@ -303,74 +300,6 @@ void ImageCropper::onLeftClickEvent(QPoint pos)
 }
 
 
-void ImageCropper::onSelectionInProgress(QPoint p1, QPoint p2)
-{
-    enforceSelectionConstraints(p1);
-    enforceSelectionConstraints(p2);
-
-    int tl_x = std::min(p1.x(), p2.x());
-    int tl_y = std::min(p1.y(), p2.y());
-
-    selection_top_left_rect_ = QPointF(tl_x,tl_y);
-    selection_size_rect_ = QSizeF(abs(p1.x() - p2.x()), abs(p1.y() - p2.y()));
-
-    //ROS_DEBUG_STREAM << "p1: " << p1.x() << " " << p1.y() << " p2: " << p2.x() << " " << p2.y();
-
-    selected_ = true;
-}
-
-void ImageCropper::onSelectionFinished(QPoint p1, QPoint p2)
-{
-    enforceSelectionConstraints(p1);
-    enforceSelectionConstraints(p2);
-
-    int tl_x = p1.x() < p2.x() ? p1.x() : p2.x();
-    int tl_y = p1.y() < p2.y() ? p1.y() : p2.y();
-
-    selection_top_left_rect_ = QPointF(tl_x,tl_y);
-    selection_size_rect_ = QSizeF(abs(p1.x() - p2.x()), abs(p1.y() - p2.y()));
-
-    selection_top_left_ = QPointF(tl_x,tl_y);
-    selection_size_ = QSizeF(abs(p1.x() - p2.x()), abs(p1.y() - p2.y()));
-
-    selection_top_left_ *= (double)qimage_.width() / (double)ui_.image_frame->contentsRect().width();// width();
-    selection_size_ *= (double)qimage_.width() / (double)ui_.image_frame->width();
-
-    // crop image from cv image
-    cv::Mat roi = cv::Mat(conversion_mat_, cv::Rect(selection_top_left_.x(), selection_top_left_.y(), selection_size_.width(), selection_size_.height()));
-
-//    std::cout << "sle height: " << selection_size_.height() << " width: " << selection_size_.width() << std::endl;
-//    std::cout << "roi rows: " << roi.rows << " cols: " << roi.cols << std::endl;
-
-//    cv_bridge::CvImage crop;
-//    crop.header = sens_msg_image_->header;
-//    crop.encoding = sensor_msgs::image_encodings::RGB8;
-//    crop.image = roi;
-
-    // adapt camera info
-    // Create updated CameraInfo message
-    sensor_msgs::CameraInfoPtr out_info = boost::make_shared<sensor_msgs::CameraInfo>(*camera_info_);
-    int binning_x = std::max((int)camera_info_->binning_x, 1);
-    int binning_y = std::max((int)camera_info_->binning_y, 1);
-    out_info->binning_x = binning_x * 1;
-    out_info->binning_y = binning_y * 1;
-    out_info->roi.x_offset += selection_top_left_.x() * binning_x;
-    out_info->roi.y_offset += selection_top_left_.y() * binning_y;
-    out_info->roi.height = selection_size_.height() * binning_y;
-    out_info->roi.width = selection_size_.width() * binning_x;
-
-
-    if(publisher_.getNumSubscribers())
-    {
-        publisher_.publish(sens_msg_image_,out_info);
-    }
-}
-
-void ImageCropper::onRemoveSelection()
-{
-    selected_region_ = QImage();
-    selected_ = false;
-}
 
 void ImageCropper::enforceSelectionConstraints(QPoint & p)
 {
@@ -384,10 +313,6 @@ void ImageCropper::enforceSelectionConstraints(QPoint & p)
     p.setY(std::min(std::max(p.y(),min_y),max_y));
 }
 
-void ImageCropper::onDynamicRange(bool checked)
-{
-  ui_.max_range_double_spin_box->setEnabled(!checked);
-}
 
 void ImageCropper::callbackImage(const sensor_msgs::Image::ConstPtr& img, const sensor_msgs::CameraInfoConstPtr& ci)
 {
