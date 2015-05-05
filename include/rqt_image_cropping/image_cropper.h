@@ -88,8 +88,6 @@ protected slots:
 
   virtual void onInTopicChanged(int index);
 
-  virtual void onOutTopicChanged();
-
   virtual void onZoomEvent(int numDegrees);
 
   virtual void onLeftClickEvent(QPoint pos);

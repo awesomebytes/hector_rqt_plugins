@@ -73,10 +73,6 @@ void ImageCropper::initPlugin(qt_gui_cpp::PluginContext& context)
   ui_.topics_combo_box->setCurrentIndex(ui_.topics_combo_box->findText(""));
   connect(ui_.topics_combo_box, SIGNAL(currentIndexChanged(int)), this, SLOT(onInTopicChanged(int)));
 
-  ui_.out_topic_line_edit->setText("/cropped");
-  connect(ui_.out_topic_line_edit, SIGNAL(editingFinished()), this, SLOT(onOutTopicChanged()));
-  onOutTopicChanged();
-
   ui_.refresh_topics_push_button->setIcon(QIcon::fromTheme("view-refresh"));
   connect(ui_.refresh_topics_push_button, SIGNAL(pressed()), this, SLOT(updateTopicList()));
   
@@ -267,25 +263,6 @@ void ImageCropper::onInTopicChanged(int index)
   selected_ = false;
 }
 
-void ImageCropper::onOutTopicChanged()
-{
-    publisher_.shutdown();
-
-    QString topic = ui_.out_topic_line_edit->text();
-
-    if(!topic.isEmpty())
-    {
-        image_transport::ImageTransport it(getNodeHandle());
-
-        try {
-            publisher_ = it.advertiseCamera(topic.toStdString(), 1, true);
-        } catch (image_transport::TransportLoadException& e) {
-            QMessageBox::warning(widget_, tr("Loading image transport plugin failed"), e.what());
-        }
-    }
-
-    selected_ = false;
-}
 
 
 void ImageCropper::onZoomEvent(int numDegrees)
