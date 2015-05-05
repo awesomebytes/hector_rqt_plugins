@@ -73,7 +73,6 @@ public:
 
   virtual void restoreSettings(const qt_gui_cpp::Settings& plugin_settings, const qt_gui_cpp::Settings& instance_settings);
 
-//  virtual void onZoomEvent(int numDegrees);
 
 protected slots:
 
@@ -89,34 +88,19 @@ protected slots:
 
   virtual void onInTopicChanged(int index);
 
-  virtual void onOutTopicChanged();
-
-//  virtual void onZoom1(bool checked);
-
   virtual void onZoomEvent(int numDegrees);
 
-  virtual void onDynamicRange(bool checked);
-
-  virtual void onSelectionInProgress(QPoint p1, QPoint p2);
-
-  virtual void onSelectionFinished(QPoint p1, QPoint p2);
-
-  virtual void onRemoveSelection();
+  virtual void onLeftClickEvent(QPoint pos);
 
 protected:
 
   virtual void callbackImage(const sensor_msgs::Image::ConstPtr& msg, const sensor_msgs::CameraInfoConstPtr &ci);
-
-  virtual void publishCrop();
-
-  virtual void enforceSelectionConstraints(QPoint & p);
 
   Ui::ImageCropperWidget ui_;
 
   QWidget* widget_;
 
   image_transport::CameraSubscriber subscriber_;
-  image_transport::CameraPublisher publisher_;
 
   sensor_msgs::Image::ConstPtr sens_msg_image_;
   sensor_msgs::CameraInfoConstPtr camera_info_;
@@ -137,7 +121,6 @@ protected:
   QSizeF selection_size_;
   QSizeF selection_size_rect_;
 
-  bool selected_;
 
 };
 
