@@ -66,71 +66,63 @@ void ImageCropper::initPlugin(qt_gui_cpp::PluginContext& context)
   }
   context.addWidget(widget_);
 
-  ui_.image_frame->installEventFilter(this);
+//  ui_.image_frame->installEventFilter(this);
 
   updateTopicList();
 
   ui_.topics_combo_box->setCurrentIndex(ui_.topics_combo_box->findText(""));
   connect(ui_.topics_combo_box, SIGNAL(currentIndexChanged(int)), this, SLOT(onInTopicChanged(int)));
 
-  ui_.out_topic_line_edit->setText("/cropped");
-  connect(ui_.out_topic_line_edit, SIGNAL(editingFinished()), this, SLOT(onOutTopicChanged()));
-  onOutTopicChanged();
-
   ui_.refresh_topics_push_button->setIcon(QIcon::fromTheme("view-refresh"));
   connect(ui_.refresh_topics_push_button, SIGNAL(pressed()), this, SLOT(updateTopicList()));
   
-  connect(ui_.dynamic_range_check_box, SIGNAL(toggled(bool)), this, SLOT(onDynamicRange(bool)));
 
-  connect(ui_.image_frame, SIGNAL(rightMouseButtonClicked()), this, SLOT(onRemoveSelection()));
-  connect(ui_.image_frame, SIGNAL(selectionInProgress(QPoint,QPoint)), this, SLOT(onSelectionInProgress(QPoint,QPoint)));
-  connect(ui_.image_frame, SIGNAL(selectionFinished(QPoint,QPoint)), this, SLOT(onSelectionFinished(QPoint,QPoint)));
+  connect(ui_.image_frame, SIGNAL(leftClickSignal(QPoint)), this, SLOT(onLeftClickEvent(QPoint)));
   connect(ui_.image_frame, SIGNAL(zoomSignal(int)), this, SLOT(onZoomEvent(int))); // so much c++ hate
 }
 
-bool ImageCropper::eventFilter(QObject* watched, QEvent* event)
-{
-  if (watched == ui_.image_frame && event->type() == QEvent::Paint)
-  {
-    QPainter painter(ui_.image_frame);
-    if (!qimage_.isNull())
-    {
-      ui_.image_frame->resizeToFitAspectRatio();
-      // TODO: check if full draw is really necessary
-      //QPaintEvent* paint_event = dynamic_cast<QPaintEvent*>(event);
-      //painter.drawImage(paint_event->rect(), qimage_);
-      qimage_mutex_.lock();
-      painter.drawImage(ui_.image_frame->contentsRect(), qimage_);
-      qimage_mutex_.unlock();
-    } else {
-      // default image with gradient
-      QLinearGradient gradient(0, 0, ui_.image_frame->frameRect().width(), ui_.image_frame->frameRect().height());
-      gradient.setColorAt(0, Qt::white);
-      gradient.setColorAt(1, Qt::black);
-      painter.setBrush(gradient);
-      painter.drawRect(0, 0, ui_.image_frame->frameRect().width() + 1, ui_.image_frame->frameRect().height() + 1);
-    }
+//bool ImageCropper::eventFilter(QObject* watched, QEvent* event)
+//{
+//  if (watched == ui_.image_frame && event->type() == QEvent::Paint)
+//  {
+//    QPainter painter(ui_.image_frame);
+//    if (!qimage_.isNull())
+//    {
+//      ui_.image_frame->resizeToFitAspectRatio();
+//      // TODO: check if full draw is really necessary
+//      //QPaintEvent* paint_event = dynamic_cast<QPaintEvent*>(event);
+//      //painter.drawImage(paint_event->rect(), qimage_);
+//      qimage_mutex_.lock();
+//      painter.drawImage(ui_.image_frame->contentsRect(), qimage_);
+//      qimage_mutex_.unlock();
+//    } else {
+//      // default image with gradient
+//      QLinearGradient gradient(0, 0, ui_.image_frame->frameRect().width(), ui_.image_frame->frameRect().height());
+//      gradient.setColorAt(0, Qt::white);
+//      gradient.setColorAt(1, Qt::black);
+//      painter.setBrush(gradient);
+//      painter.drawRect(0, 0, ui_.image_frame->frameRect().width() + 1, ui_.image_frame->frameRect().height() + 1);
+//    }
 
-    if(selected_)
-    {
-        selection_ = QRectF(selection_top_left_rect_, selection_size_rect_);
+//    if(selected_)
+//    {
+//        selection_ = QRectF(selection_top_left_rect_, selection_size_rect_);
 
-        painter.setPen(Qt::red);
-        painter.drawRect(selection_);
-    }
+//        painter.setPen(Qt::red);
+//        painter.drawRect(selection_);
+//    }
 
-    ui_.image_frame->update();
+//    ui_.image_frame->update();
 
-    return false;
-  }
+//    return false;
+//  }
 
-  return QObject::eventFilter(watched, event);
-}
+//  return QObject::eventFilter(watched, event);
+//}
 
 void ImageCropper::shutdownPlugin()
 {
   subscriber_.shutdown();
-  publisher_.shutdown();
 }
 
 void ImageCropper::saveSettings(qt_gui_cpp::Settings& plugin_settings, qt_gui_cpp::Settings& instance_settings) const
@@ -138,18 +130,10 @@ void ImageCropper::saveSettings(qt_gui_cpp::Settings& plugin_settings, qt_gui_cp
   QString topic = ui_.topics_combo_box->currentText();
   //qDebug("ImageCropper::saveSettings() topic '%s'", topic.toStdString().c_str());
   instance_settings.setValue("topic", topic);
-  instance_settings.setValue("dynamic_range", ui_.dynamic_range_check_box->isChecked());
-  instance_settings.setValue("max_range", ui_.max_range_double_spin_box->value());
 }
 
 void ImageCropper::restoreSettings(const qt_gui_cpp::Settings& plugin_settings, const qt_gui_cpp::Settings& instance_settings)
 {
-  bool dynamic_range_checked = instance_settings.value("dynamic_range", false).toBool();
-  ui_.dynamic_range_check_box->setChecked(dynamic_range_checked);
-
-  double max_range = instance_settings.value("max_range", ui_.max_range_double_spin_box->value()).toDouble();
-  ui_.max_range_double_spin_box->setValue(max_range);
-
   QString topic = instance_settings.value("topic", "").toString();
   //qDebug("ImageCropper::restoreSettings() topic '%s'", topic.toStdString().c_str());
   selectTopic(topic);
@@ -270,119 +254,19 @@ void ImageCropper::onInTopicChanged(int index)
   selected_ = false;
 }
 
-void ImageCropper::onOutTopicChanged()
-{
-    publisher_.shutdown();
-
-    QString topic = ui_.out_topic_line_edit->text();
-
-    if(!topic.isEmpty())
-    {
-        image_transport::ImageTransport it(getNodeHandle());
-
-        try {
-            publisher_ = it.advertiseCamera(topic.toStdString(), 1, true);
-        } catch (image_transport::TransportLoadException& e) {
-            QMessageBox::warning(widget_, tr("Loading image transport plugin failed"), e.what());
-        }
-    }
-
-    selected_ = false;
-}
 
 
 void ImageCropper::onZoomEvent(int numDegrees)
 {
     //i hate c++
-    ui_.out_topic_line_edit->setText(QString::number(numDegrees));
+    std::cout << "Wheel delta degrees: " << numDegrees << std::endl;
 }
 
-
-void ImageCropper::onSelectionInProgress(QPoint p1, QPoint p2)
+void ImageCropper::onLeftClickEvent(QPoint pos)
 {
-    enforceSelectionConstraints(p1);
-    enforceSelectionConstraints(p2);
-
-    int tl_x = std::min(p1.x(), p2.x());
-    int tl_y = std::min(p1.y(), p2.y());
-
-    selection_top_left_rect_ = QPointF(tl_x,tl_y);
-    selection_size_rect_ = QSizeF(abs(p1.x() - p2.x()), abs(p1.y() - p2.y()));
-
-    //ROS_DEBUG_STREAM << "p1: " << p1.x() << " " << p1.y() << " p2: " << p2.x() << " " << p2.y();
-
-    selected_ = true;
+    std::cout << "Left click at:\nrx,ry: " << pos.rx() << ", " << pos.ry() << ", \nx,y: " << pos.x() << ", " << pos.y() << std::endl;
 }
 
-void ImageCropper::onSelectionFinished(QPoint p1, QPoint p2)
-{
-    enforceSelectionConstraints(p1);
-    enforceSelectionConstraints(p2);
-
-    int tl_x = p1.x() < p2.x() ? p1.x() : p2.x();
-    int tl_y = p1.y() < p2.y() ? p1.y() : p2.y();
-
-    selection_top_left_rect_ = QPointF(tl_x,tl_y);
-    selection_size_rect_ = QSizeF(abs(p1.x() - p2.x()), abs(p1.y() - p2.y()));
-
-    selection_top_left_ = QPointF(tl_x,tl_y);
-    selection_size_ = QSizeF(abs(p1.x() - p2.x()), abs(p1.y() - p2.y()));
-
-    selection_top_left_ *= (double)qimage_.width() / (double)ui_.image_frame->contentsRect().width();// width();
-    selection_size_ *= (double)qimage_.width() / (double)ui_.image_frame->width();
-
-    // crop image from cv image
-    cv::Mat roi = cv::Mat(conversion_mat_, cv::Rect(selection_top_left_.x(), selection_top_left_.y(), selection_size_.width(), selection_size_.height()));
-
-//    std::cout << "sle height: " << selection_size_.height() << " width: " << selection_size_.width() << std::endl;
-//    std::cout << "roi rows: " << roi.rows << " cols: " << roi.cols << std::endl;
-
-//    cv_bridge::CvImage crop;
-//    crop.header = sens_msg_image_->header;
-//    crop.encoding = sensor_msgs::image_encodings::RGB8;
-//    crop.image = roi;
-
-    // adapt camera info
-    // Create updated CameraInfo message
-    sensor_msgs::CameraInfoPtr out_info = boost::make_shared<sensor_msgs::CameraInfo>(*camera_info_);
-    int binning_x = std::max((int)camera_info_->binning_x, 1);
-    int binning_y = std::max((int)camera_info_->binning_y, 1);
-    out_info->binning_x = binning_x * 1;
-    out_info->binning_y = binning_y * 1;
-    out_info->roi.x_offset += selection_top_left_.x() * binning_x;
-    out_info->roi.y_offset += selection_top_left_.y() * binning_y;
-    out_info->roi.height = selection_size_.height() * binning_y;
-    out_info->roi.width = selection_size_.width() * binning_x;
-
-
-    if(publisher_.getNumSubscribers())
-    {
-        publisher_.publish(sens_msg_image_,out_info);
-    }
-}
-
-void ImageCropper::onRemoveSelection()
-{
-    selected_region_ = QImage();
-    selected_ = false;
-}
-
-void ImageCropper::enforceSelectionConstraints(QPoint & p)
-{
-    int min_x = 1;
-    int max_x = ui_.image_frame->width() - 2 * ui_.image_frame->frameWidth();
-
-    int min_y = 1;
-    int max_y = ui_.image_frame->height() - 2 * ui_.image_frame->frameWidth();
-
-    p.setX(std::min(std::max(p.x(),min_x),max_x));
-    p.setY(std::min(std::max(p.y(),min_y),max_y));
-}
-
-void ImageCropper::onDynamicRange(bool checked)
-{
-  ui_.max_range_double_spin_box->setEnabled(!checked);
-}
 
 void ImageCropper::callbackImage(const sensor_msgs::Image::ConstPtr& img, const sensor_msgs::CameraInfoConstPtr& ci)
 {
@@ -409,24 +293,6 @@ void ImageCropper::callbackImage(const sensor_msgs::Image::ConstPtr& img, const 
             } else if (img->encoding == "8UC1") {
                 // convert gray to rgb
                 cv::cvtColor(cv_ptr->image, conversion_mat_, CV_GRAY2RGB);
-            } else if (img->encoding == "16UC1" || img->encoding == "32FC1") {
-                // scale / quantify
-                image_min_value_ = 0;
-                image_max_value_ = ui_.max_range_double_spin_box->value();
-                if (img->encoding == "16UC1") image_max_value_ *= 1000;
-                if (ui_.dynamic_range_check_box->isChecked())
-                {
-                    // dynamically adjust range based on min/max in image
-                    cv::minMaxLoc(cv_ptr->image, &image_min_value_, &image_max_value_);
-                    if (image_min_value_ == image_max_value_) {
-                        // completely homogeneous images are displayed in gray
-                        image_min_value_ = 0;
-                        image_max_value_ = 2;
-                    }
-                }
-                cv::Mat img_scaled_8u;
-                cv::Mat(cv_ptr->image-image_min_value_).convertTo(img_scaled_8u, CV_8UC1, 255. / (image_max_value_ - image_min_value_));
-                cv::cvtColor(img_scaled_8u, conversion_mat_, CV_GRAY2RGB);
             } else {
                 qWarning("ImageCropper.callback_image() could not convert image from '%s' to 'rgb8' (%s)", img->encoding.c_str(), e.what());
                 qimage_ = QImage();
@@ -448,11 +314,6 @@ void ImageCropper::callbackImage(const sensor_msgs::Image::ConstPtr& img, const 
         widget_->setMinimumSize(QSize(80, 60));
         widget_->setMaximumSize(QSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX));
     }
-}
-
-void ImageCropper::publishCrop()
-{
-
 }
 
 }

@@ -74,10 +74,6 @@ public:
 
   void mousePressEvent(QMouseEvent * me);
 
-  void mouseMoveEvent(QMouseEvent * me);
-
-  void mouseReleaseEvent(QMouseEvent * me);
-
   void wheelEvent(QWheelEvent *we);
 
 private:
@@ -86,14 +82,9 @@ private:
 
   QSize aspect_ratio_;
 
-  bool mouse_pressed_;
-
-  QPoint select_start_, select_end_;
-
 signals:
-  void selectionInProgress(QPoint p1, QPoint p2);
-  void selectionFinished(QPoint p1, QPoint p2);
   void rightMouseButtonClicked();
+  void leftClickSignal(QPoint pos);
   void zoomSignal(int numDegrees);
 
 };

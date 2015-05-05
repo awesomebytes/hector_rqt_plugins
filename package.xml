@@ -1,14 +1,12 @@
 <package>
   <name>hector_rqt_plugins</name>
   <version>0.0.1</version>
-  <description>Hector plugins for rqt.</description>
-  <maintainer email="graber@fsr.tu-darmstadt.de">Thorsten Graber</maintainer>
+  <description>Plugin for axis camera view and teleop.</description>
+  <maintainer email="sam.pfeiffer@pal-robotics.com">Sammy Pfeiffer</maintainer>
 
   <license>BSD</license>
 
-  <author>Dirk Thomas</author>
-  <author>Thorsten Graber</author>
-  <author>Gregor Gebhardt</author>
+  <author>Sammy Pfeiffer</author>
 
   <buildtool_depend>catkin</buildtool_depend>
 
