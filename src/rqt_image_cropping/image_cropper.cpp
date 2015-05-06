@@ -36,6 +36,9 @@
 #include <ros/master.h>
 #include <ros/console.h>
 #include <sensor_msgs/image_encodings.h>
+//imports of shame
+#include <sstream>
+#include <boost/algorithm/string.hpp>
 
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
@@ -235,7 +238,7 @@ void ImageCropper::onInTopicChanged(int index)
     image_transport::ImageTransport it(getNodeHandle());
     image_transport::TransportHints hints(transport.toStdString());
     try {
-      subscriber_ = it.subscribeCamera(topic.toStdString(), 1, &ImageCropper::callbackImage, this, hints);
+      subscriber_ = it.subscribe(topic.toStdString(), 1, &ImageCropper::callbackImage, this, hints);
       //qDebug("ImageCropper::onInTopicChanged() to topic '%s' with transport '%s'", topic.toStdString().c_str(), subscriber_.getTransport().c_str());
     } catch (image_transport::TransportLoadException& e) {
       QMessageBox::warning(widget_, tr("Loading image transport plugin failed"), e.what());
@@ -244,67 +247,129 @@ void ImageCropper::onInTopicChanged(int index)
 
 }
 
+/*
+given a parameter name (pan, tilt, zoom)
+the value to add/substract to the current value of the parameter
+and the minimum and maximum of the value to be finally sent
+it sets that dyn param With the recommended way of the ROS docu:
+http://wiki.ros.org/hokuyo_node/Tutorials/UsingDynparamToChangeHokuyoLaserParameters
+*/
+void ImageCropper::updateDynParam(std::string parameter_name, int value, int min, int max){
+    if (value == 0){
+        std::cout << "asking to set value 0 for " << parameter_name << ", ignoring it" << std::endl;
+        return;
+    }
+
+    std::string topic_str = subscriber_.getTopic();
+    std::vector<std::string> strs;
+    boost::split(strs, topic_str, boost::is_any_of("/"));
+    //std::cout << "CURRENT TOPIC: " << subscriber_.getTopic() << ", splitted: '" << strs[0] << "' '" << strs[1] << "' "<< std::endl;
+    std::string nodepath = "/" + strs[1] + "/axis_camera_ptz"; // that's the dynamic reconfigure of the ptz
+    std::string parampath = nodepath + "/" + parameter_name;
+    int curr_param_val;
+    if (ros::param::get(parampath, curr_param_val)) //construct from the topic name the dynparam/param
+    {
+        curr_param_val += value;
+        if (curr_param_val < min)
+            curr_param_val = min;
+        if (curr_param_val > max)
+            curr_param_val = max;
+        std::ostringstream command;
+        command << "rosrun dynamic_reconfigure dynparam set " << nodepath << " " << parameter_name << " " << curr_param_val << " &";
+        std::cout << "Sending command: " << command.str() << std::endl;
+        system(command.str().c_str());
+    }
+    else
+        std::cout << "No param: '" << parampath << "'' found :(" << std::endl;
+
+}
+
+void ImageCropper::updatePanAndTiltTakingIntoAccountZoom(int pan, int tilt){
+    std::string topic_str = subscriber_.getTopic();
+    std::vector<std::string> strs;
+    boost::split(strs, topic_str, boost::is_any_of("/"));
+    //std::cout << "CURRENT TOPIC: " << subscriber_.getTopic() << ", splitted: '" << strs[0] << "' '" << strs[1] << "' "<< std::endl;
+    std::string nodepath = "/" + strs[1] + "/axis_camera_ptz"; // that's the dynamic reconfigure of the ptz
+    std::string parampath = nodepath + "/zoom";
+    int curr_zoom;
+    if (ros::param::get(parampath, curr_zoom)) //construct from the topic name the dynparam/param
+    {
+        double multipl = 1.0 - (double)(curr_zoom / 9999.0); // the more zoom, the less degrees we should move
+        // set the dynparam
+        double adapted_pan = (double) pan * multipl;
+        if (adapted_pan < 1.0 && adapted_pan >= 0.0)
+            adapted_pan = 1.0;
+        else if (adapted_pan > -1.0 && adapted_pan <= 0.0)
+            adapted_pan = -1.0;
+        updateDynParam("pan", (int)adapted_pan, -180, 180);
+
+        // set the dynparam
+        double adapted_tilt = (double) tilt * multipl;
+        if (adapted_tilt < 1.0 && adapted_tilt >= 0.0)
+            adapted_tilt = 1.0;
+        else if (adapted_tilt > -1.0 && adapted_tilt <= 0.0)
+            adapted_tilt = -1.0;
+        updateDynParam("tilt", (int)adapted_tilt, -90, 0);
+    }
+}
 
 
 void ImageCropper::onZoomEvent(int numDegrees)
 {
-    //i hate c++
-    std::cout << "Wheel delta degrees: " << numDegrees << std::endl;
     int finalzoom = 0;
-    int zoom_step = 500;
+    int zoom_step = 1500;
     finalzoom = (numDegrees / 120) * zoom_step; // qt always gives multiples of 120
-    // get the current zoom level, and add the finalzoom quantity
-    std::cout << "finalzoom: " << finalzoom << std::endl;
-
-    //check we dont go out of bounds, zoom is 1.0 - 9999.0
+    // set the dynparam
+    updateDynParam("zoom", finalzoom, 1, 9999);
 }
 
 void ImageCropper::onLeftClickEvent(QPoint pos)
 {
-    std::cout << "Left click at:\nrx,ry: " << pos.rx() << ", " << pos.ry() << ", \nx,y: " << pos.x() << ", " << pos.y() << std::endl;
+    //std::cout << "Left click at:\nrx,ry: " << pos.rx() << ", " << pos.ry() << ", \nx,y: " << pos.x() << ", " << pos.y() << std::endl;
     // taken looking at the implementation of the axis camera ptz node
     // get the current pan from the dynamic reconfigure and add/substract a step based on how far the user click from the center
-    int panstep = 10;
+    int panstep = 15;
     int tiltstep = 5;
-    std::cout << "ui_.image_frame->frameRect().width():" << ui_.image_frame->frameRect().width() << std::endl;
-    std::cout << "ui_.image_frame->frameRect().height():" << ui_.image_frame->frameRect().height() << std::endl;
+    //std::cout << "ui_.image_frame->frameRect().width():" << ui_.image_frame->frameRect().width() << std::endl;
+    //std::cout << "ui_.image_frame->frameRect().height():" << ui_.image_frame->frameRect().height() << std::endl;
     double relpan = (double) pos.x() / ui_.image_frame->frameRect().width();
     double reltilt = (double) pos.y() / ui_.image_frame->frameRect().height();
-    std::cout << "relpan: " << relpan << ", reltilt: " << reltilt << std::endl;
+    //std::cout << "relpan: " << relpan << ", reltilt: " << reltilt << std::endl;
     int final_pan, final_tilt;
     final_pan = final_tilt = 0;
-    if (relpan >= 0.5 && relpan <= 0.75)
+    //relpan = 1 - relpan;
+    if (relpan >= 0.6 && relpan <= 1.0)
         final_pan = panstep;
-    else if (relpan <= 0.5 && relpan >= 0.25)
+    else if (relpan <= 0.4 && relpan >= 0.0)
         final_pan = -panstep;
-    else if (relpan <= 0.25 && relpan >= 0.0)
-        final_pan = 2*panstep;
-    else if (relpan >= 0.75 && relpan <= 1.0)
-        final_pan = -2*panstep;
     else
-        std::cout << "relpan outside of the range 0.0 - 1.0, this shouldnt happen!" << std::endl;
+        //std::cout << "relpan outside of the range 0.0 - 1.0, this shouldnt happen!" << std::endl;
+        std::cout << "clicking in the center in relation to pan, not moving" << std::endl;
 
-    if (reltilt >= 0.5 && reltilt <= 0.75)
-        final_tilt = tiltstep;
-    else if (reltilt <= 0.5 && reltilt >= 0.25)
+    if (reltilt >= 0.6 && reltilt <= 1.0)
         final_tilt = -tiltstep;
-    else if (reltilt <= 0.25 && reltilt >= 0.0)
-        final_tilt = 2*tiltstep;
-    else if (reltilt >= 0.75 && reltilt <= 1.0)
-        final_tilt = -2*tiltstep;
+    else if (reltilt <= 0.4 && reltilt >= 0.0)
+        final_tilt = tiltstep;
     else
-        std::cout << "reltilt outside of the range 0.0 - 1.0, this shouldnt happen!" << std::endl;
+        //std::cout << "reltilt outside of the range 0.0 - 1.0, this shouldnt happen!" << std::endl;
+        std::cout << "clicking in the center in relation to tilt, not moving" << std::endl;
 
-    std::cout << "pan: " << final_pan << " tilt: " << final_tilt << std::endl;
+    //std::cout << "pan: " << final_pan << " tilt: " << final_tilt << std::endl;
 
-    // check we dont go out of bounds, pan is -180 <-> 180, tilt is -90 <-> 0
+    // set the dynparam
+    updatePanAndTiltTakingIntoAccountZoom(final_pan, final_tilt);
+//    updateDynParam("pan", final_pan, -180, 180);
+
+//    // set the dynparam
+//    updateDynParam("tilt", final_tilt, -90, 0);
+
 }
 
 
-void ImageCropper::callbackImage(const sensor_msgs::Image::ConstPtr& img, const sensor_msgs::CameraInfoConstPtr& ci)
+void ImageCropper::callbackImage(const sensor_msgs::Image::ConstPtr& img)//, const sensor_msgs::CameraInfoConstPtr& ci)
 {
         sens_msg_image_ = img;
-        camera_info_ = ci;
+        //camera_info_ = ci;
 
         try
         {
