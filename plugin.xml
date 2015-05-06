@@ -1,12 +1,12 @@
 <library path="lib/libhector_rqt_plugins">
   <class name="rqt_image_cropping/ImageCropper" type="rqt_image_cropping::ImageCropper" base_class_type="rqt_gui_cpp::Plugin">
     <description>
-      A GUI plugin to crop an image and republish it.
+      A GUI plugin to teleop axis cameras.
     </description>
     <qtgui>
-      <label>Image Cropper</label>
+      <label>Axis Teleop</label>
       <icon type="theme">image-x-generic</icon>
-      <statustip>A GUI plugin to crop an image and republish it.</statustip>
+      <statustip>A GUI plugin to teleop axis cameras.</statustip>
     </qtgui>
   </class>
 </library>

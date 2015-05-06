@@ -54,7 +54,7 @@ ImageCropper::ImageCropper()
   : rqt_gui_cpp::Plugin()
   , widget_(0)
 {
-  setObjectName("ImageCropper");
+  setObjectName("AxisTeleop");
 }
 
 void ImageCropper::initPlugin(qt_gui_cpp::PluginContext& context)
