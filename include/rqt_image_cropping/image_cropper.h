@@ -73,6 +73,9 @@ public:
 
   virtual void restoreSettings(const qt_gui_cpp::Settings& plugin_settings, const qt_gui_cpp::Settings& instance_settings);
 
+  void updateDynParam(std::string parameter_name, int value, int min, int max);
+
+  void updatePanAndTiltTakingIntoAccountZoom(int pan, int tilt);
 
 protected slots:
 
@@ -94,13 +97,13 @@ protected slots:
 
 protected:
 
-  virtual void callbackImage(const sensor_msgs::Image::ConstPtr& msg, const sensor_msgs::CameraInfoConstPtr &ci);
+  virtual void callbackImage(const sensor_msgs::Image::ConstPtr& msg);
 
   Ui::ImageCropperWidget ui_;
 
   QWidget* widget_;
 
-  image_transport::CameraSubscriber subscriber_;
+  image_transport::Subscriber subscriber_;
 
   sensor_msgs::Image::ConstPtr sens_msg_image_;
   sensor_msgs::CameraInfoConstPtr camera_info_;

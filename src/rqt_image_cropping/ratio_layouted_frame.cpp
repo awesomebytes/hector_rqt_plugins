@@ -119,8 +119,7 @@ int RatioLayoutedFrame::greatestCommonDivisor(int a, int b)
 
 void RatioLayoutedFrame::wheelEvent(QWheelEvent *we)
 {
-    int numDegrees  = we->delta();
-    std::cout << "wheel scroll deg: " << numDegrees << std::endl;
+    int numDegrees  = we->delta(); // always quantities divisible by 120 for some reason
     emit zoomSignal(numDegrees);
 
 }
